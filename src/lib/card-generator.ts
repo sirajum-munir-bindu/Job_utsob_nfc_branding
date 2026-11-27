@@ -202,6 +202,22 @@ function generateOfficialJobUtsobCardSvg(): string {
   `;
 }
 
+let cachedFontBase64: string | null = null;
+
+function getCardFontBase64(): string {
+  if (cachedFontBase64) return cachedFontBase64;
+  try {
+    const fontPath = path.join(process.cwd(), "public", "assets", "fonts", "CardFont-Bold.ttf");
+    if (fs.existsSync(fontPath)) {
+      cachedFontBase64 = fs.readFileSync(fontPath).toString("base64");
+      return cachedFontBase64;
+    }
+  } catch (e) {
+    console.warn("Could not load local font file, falling back to system fonts:", e);
+  }
+  return "";
+}
+
 /**
  * Creates the SVG text overlay for the custom template (overwriting name on official picture)
  */
@@ -216,16 +232,35 @@ function createCustomTemplateOverlaySvg(
   else if (name.length > 22) fontSize = 36;
   else if (name.length > 15) fontSize = 44;
 
+  const fontBase64 = getCardFontBase64();
+  const fontFaceStyle = fontBase64
+    ? `@font-face {
+        font-family: 'CardFont';
+        src: url('data:font/truetype;charset=utf-8;base64,${fontBase64}') format('truetype');
+        font-weight: 900;
+      }`
+    : "";
+
   return `
   <svg width="${width}" height="${height}" viewBox="0 0 1134 662" xmlns="http://www.w3.org/2000/svg">
     <defs>
+      <style>
+        ${fontFaceStyle}
+        .attendee-name {
+          font-family: 'CardFont', 'DejaVu Sans', 'Liberation Sans', Arial, Helvetica, sans-serif;
+          font-weight: 900;
+          font-size: ${fontSize}px;
+          letter-spacing: 1.5px;
+          fill: #ffffff;
+        }
+      </style>
       <filter id="customTextShadow" x="-20%" y="-20%" width="140%" height="140%">
         <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000000" flood-opacity="0.9"/>
       </filter>
     </defs>
 
     <!-- Student Name Only Overwritten on Template -->
-    <text x="90" y="390" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="${fontSize}" letter-spacing="1.5px" fill="#ffffff" filter="url(#customTextShadow)">
+    <text x="90" y="390" class="attendee-name" filter="url(#customTextShadow)">
       ${cleanName}
     </text>
   </svg>
