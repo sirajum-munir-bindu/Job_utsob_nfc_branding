@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import path from "path";
 import fs from "fs";
+import * as opentype from "opentype.js";
 import { sanitizeFileName } from "./utils";
 import { CARD_FONT_BASE64 } from "./card-font-base64";
 
@@ -203,49 +204,77 @@ function generateOfficialJobUtsobCardSvg(): string {
   `;
 }
 
+let parsedFont: opentype.Font | null = null;
+
+function getParsedFont(): opentype.Font | null {
+  if (parsedFont) return parsedFont;
+  try {
+    const fontBuffer = Buffer.from(CARD_FONT_BASE64, "base64");
+    parsedFont = opentype.parse(
+      fontBuffer.buffer.slice(
+        fontBuffer.byteOffset,
+        fontBuffer.byteOffset + fontBuffer.byteLength
+      )
+    );
+    return parsedFont;
+  } catch (err) {
+    console.error("Failed to parse font with opentype:", err);
+    return null;
+  }
+}
+
 /**
  * Creates the SVG text overlay for the custom template (overwriting name on official picture)
+ * Converted to pure vector paths so it renders flawlessly on Vercel without needing host OS fonts!
  */
 function createCustomTemplateOverlaySvg(
   name: string,
   width: number,
   height: number
 ): string {
-  const cleanName = escapeXml(name.toUpperCase());
+  const cleanName = name.trim().toUpperCase() || "ATTENDEE";
   let fontSize = 54;
-  if (name.length > 28) fontSize = 30;
-  else if (name.length > 22) fontSize = 36;
-  else if (name.length > 15) fontSize = 44;
+  if (cleanName.length > 28) fontSize = 28;
+  else if (cleanName.length > 22) fontSize = 34;
+  else if (cleanName.length > 15) fontSize = 42;
 
-  const fontFaceStyle = CARD_FONT_BASE64
-    ? `@font-face {
-        font-family: 'CardFont';
-        src: url('data:font/truetype;charset=utf-8;base64,${CARD_FONT_BASE64}') format('truetype');
-        font-weight: 900;
-      }`
-    : "";
+  let pathData = "";
+  try {
+    const font = getParsedFont();
+    if (font) {
+      const glyphPath = font.getPath(cleanName, 90, 390, fontSize);
+      pathData = glyphPath.toPathData(2);
+    }
+  } catch (err) {
+    console.error("Vector font rendering error:", err);
+  }
 
+  if (pathData) {
+    return `
+    <svg width="${width}" height="${height}" viewBox="0 0 1134 662" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="customTextShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000000" flood-opacity="0.9"/>
+        </filter>
+      </defs>
+
+      <!-- Student Name Pure Vector Outlines (Immune to Linux/Vercel Missing Font Issues) -->
+      <path d="${pathData}" fill="#ffffff" filter="url(#customTextShadow)" />
+    </svg>
+    `;
+  }
+
+  // Fallback in case of unexpected glyph error
+  const escaped = escapeXml(cleanName);
   return `
   <svg width="${width}" height="${height}" viewBox="0 0 1134 662" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <style>
-        ${fontFaceStyle}
-        .attendee-name {
-          font-family: 'CardFont', 'DejaVu Sans', 'Liberation Sans', Arial, Helvetica, sans-serif;
-          font-weight: 900;
-          font-size: ${fontSize}px;
-          letter-spacing: 1.5px;
-          fill: #ffffff;
-        }
-      </style>
       <filter id="customTextShadow" x="-20%" y="-20%" width="140%" height="140%">
         <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000000" flood-opacity="0.9"/>
       </filter>
     </defs>
-
-    <!-- Student Name Only Overwritten on Template -->
-    <text x="90" y="390" class="attendee-name" filter="url(#customTextShadow)">
-      ${cleanName}
+    <text x="90" y="390" font-family="'DejaVu Sans', 'Liberation Sans', sans-serif" font-weight="900" font-size="${fontSize}" letter-spacing="1.5px" fill="#ffffff" filter="url(#customTextShadow)">
+      ${escaped}
     </text>
   </svg>
   `;
