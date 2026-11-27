@@ -2,6 +2,7 @@ import sharp from "sharp";
 import path from "path";
 import fs from "fs";
 import { sanitizeFileName } from "./utils";
+import { CARD_FONT_BASE64 } from "./card-font-base64";
 
 export interface CardGenerationResult {
   fileName: string;
@@ -202,22 +203,6 @@ function generateOfficialJobUtsobCardSvg(): string {
   `;
 }
 
-let cachedFontBase64: string | null = null;
-
-function getCardFontBase64(): string {
-  if (cachedFontBase64) return cachedFontBase64;
-  try {
-    const fontPath = path.join(process.cwd(), "public", "assets", "fonts", "CardFont-Bold.ttf");
-    if (fs.existsSync(fontPath)) {
-      cachedFontBase64 = fs.readFileSync(fontPath).toString("base64");
-      return cachedFontBase64;
-    }
-  } catch (e) {
-    console.warn("Could not load local font file, falling back to system fonts:", e);
-  }
-  return "";
-}
-
 /**
  * Creates the SVG text overlay for the custom template (overwriting name on official picture)
  */
@@ -232,11 +217,10 @@ function createCustomTemplateOverlaySvg(
   else if (name.length > 22) fontSize = 36;
   else if (name.length > 15) fontSize = 44;
 
-  const fontBase64 = getCardFontBase64();
-  const fontFaceStyle = fontBase64
+  const fontFaceStyle = CARD_FONT_BASE64
     ? `@font-face {
         font-family: 'CardFont';
-        src: url('data:font/truetype;charset=utf-8;base64,${fontBase64}') format('truetype');
+        src: url('data:font/truetype;charset=utf-8;base64,${CARD_FONT_BASE64}') format('truetype');
         font-weight: 900;
       }`
     : "";

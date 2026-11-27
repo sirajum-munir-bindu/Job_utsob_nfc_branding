@@ -2,6 +2,9 @@
 const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['sharp', 'exceljs'],
+    outputFileTracingIncludes: {
+      '/api/**/*': ['./public/assets/**/*'],
+    },
   },
   images: {
     remotePatterns: [
