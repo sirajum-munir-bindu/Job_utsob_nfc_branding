@@ -242,15 +242,11 @@ export async function generateNfcCardPng(
   const sanitized = sanitizeFileName(studentName);
   const fileName = `JOB_UTSOB_2026_${sanitized}.png`;
 
-  // Ensure output directory exists
+  // Check output directory (with serverless safe fallback)
   const publicDir = path.join(process.cwd(), "public");
   const outputDir = path.join(publicDir, "generated-cards");
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-
   const outputPath = path.join(outputDir, `${studentId}_${fileName}`);
-  const relativeUrl = `/generated-cards/${studentId}_${fileName}`;
+  let relativeUrl = `/generated-cards/${studentId}_${fileName}`;
 
   // Check if an existing supplied custom card template exists
   const templatePngPath = path.join(publicDir, "assets", "nfc-card-template.png");
@@ -344,10 +340,18 @@ export async function generateNfcCardPng(
     })
     .toBuffer();
 
-  // Save the PNG to disk
-  fs.writeFileSync(outputPath, finalImageBuffer);
-
   const dataUrl = `data:image/png;base64,${finalImageBuffer.toString("base64")}`;
+
+  // Save the PNG to disk if writeable, otherwise seamlessly use dataUrl on serverless (e.g. Vercel)
+  try {
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+    fs.writeFileSync(outputPath, finalImageBuffer);
+  } catch (fsErr) {
+    // Vercel serverless read-only filesystem: use dataUrl
+    relativeUrl = dataUrl;
+  }
 
   return {
     fileName,

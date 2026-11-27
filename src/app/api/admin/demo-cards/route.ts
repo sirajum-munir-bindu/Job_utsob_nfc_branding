@@ -11,9 +11,11 @@ export const dynamic = "force-dynamic";
 const DEMO_DIR = path.join(process.cwd(), "public", "demo-cards");
 
 function ensureDemoDir() {
-  if (!fs.existsSync(DEMO_DIR)) {
-    fs.mkdirSync(DEMO_DIR, { recursive: true });
-  }
+  try {
+    if (!fs.existsSync(DEMO_DIR)) {
+      fs.mkdirSync(DEMO_DIR, { recursive: true });
+    }
+  } catch {}
 }
 
 // GET /api/admin/demo-cards — Get all demo cards
