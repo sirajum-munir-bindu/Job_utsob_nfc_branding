@@ -1,0 +1,50 @@
+// Prisma schema for DIU Job Utsob 2026 Live NFC Card Branding System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Student {
+  id                   String        @id @default(uuid())
+  fullName             String
+  phone                String
+  email                String
+  cardImageUrl         String?       @db.Text
+  cardGeneratedAt      DateTime?
+  cardGenerationStatus String        @default("PENDING") // PENDING, GENERATED, FAILED
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([phone])
+  @@index([email])
+  @@index([createdAt])
+  @@map("students")
+}
+
+model Admin {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String   @default("Skill Jobs Admin")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model DisplayState {
+  id               String   @id @default("CURRENT_DISPLAY")
+  currentStudentId String?
+  studentName      String?
+  cardImageUrl     String?  @db.Text
+  isPaused         Boolean  @default(false)
+  mode             String   @default("WELCOME") // "WELCOME", "CARD", "CELEBRATION"
+  updatedAt        DateTime @updatedAt
+
+  @@map("display_states")
+}
